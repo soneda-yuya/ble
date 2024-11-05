@@ -50,18 +50,18 @@ func NewDeviceWithNameAndHandler(name string, handler ble.NotifyHandler, opts ..
 	return &Device{HCI: dev, Server: srv}, nil
 }
 
-// NewBLE5Device returns the default HCI device.
-func NewBLE5Device(opts ...ble.Option) (*Device, error) {
-	return NewBLE5DeviceWithName("Gopher", opts...)
+// NewAdvertisingExtensionsDevice returns the default HCI device.
+func NewAdvertisingExtensionsDevice(opts ...ble.Option) (*Device, error) {
+	return NewAdvertisingExtensionsDeviceWithName("Gopher", opts...)
 }
 
-// NewBLE5DeviceWithName returns the default HCI device.
-func NewBLE5DeviceWithName(name string, opts ...ble.Option) (*Device, error) {
-	return NewBLE5DeviceWithNameAndHandler(name, nil, opts...)
+// NewAdvertisingExtensionsDeviceWithName returns the default HCI device.
+func NewAdvertisingExtensionsDeviceWithName(name string, opts ...ble.Option) (*Device, error) {
+	return NewAdvertisingExtensionsDeviceWithNameAndHandler(name, nil, opts...)
 }
 
-func NewBLE5DeviceWithNameAndHandler(name string, handler ble.NotifyHandler, opts ...ble.Option) (*Device, error) {
-	dev, err := hci.NewHCIForBLE5(opts...)
+func NewAdvertisingExtensionsDeviceWithNameAndHandler(name string, handler ble.NotifyHandler, opts ...ble.Option) (*Device, error) {
+	dev, err := hci.NewHCIForAdvertisingExtensions(opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create hci")
 	}

@@ -21,7 +21,7 @@ var (
 func main() {
 	flag.Parse()
 
-	d, err := dev.BLE5Device()
+	d, err := dev.AdvertisingExtensionsDevice()
 	if err != nil {
 		log.Fatalf("can't new device : %s", err)
 	}

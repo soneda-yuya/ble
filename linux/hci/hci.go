@@ -64,7 +64,7 @@ func NewHCI(opts ...ble.Option) (*HCI, error) {
 }
 
 // NewHCI returns a hci device.
-func NewHCIForBLE5(opts ...ble.Option) (*HCI, error) {
+func NewHCIForAdvertisingExtensions(opts ...ble.Option) (*HCI, error) {
 	h := &HCI{
 		id: -1,
 
@@ -83,7 +83,7 @@ func NewHCIForBLE5(opts ...ble.Option) (*HCI, error) {
 
 		done: make(chan bool),
 	}
-	h.params.initForBLE5()
+	h.params.initForAdvertisingExtensions()
 	if err := h.Option(opts...); err != nil {
 		return nil, errors.Wrap(err, "can't set options")
 	}
@@ -185,7 +185,7 @@ func (h *HCI) Init() error {
 
 	go h.sktLoop()
 	if h.params.extendedScanParams.ScanningPHYs != 0x00 {
-		if err := h.initForBLE5(); err != nil {
+		if err := h.initForAdvertisingExtensions(); err != nil {
 			return err
 		}
 	} else {
@@ -199,7 +199,7 @@ func (h *HCI) Init() error {
 	h.pool = NewPool(1+4+h.bufSize, h.bufCnt-1)
 
 	if h.params.extendedScanParams.ScanningPHYs != 0x00 {
-		log.Println("Enable BLE 5")
+		log.Println("Enable Advertising Extensions")
 		h.Send(&h.params.leSetDefaultPHY, nil)
 		h.Send(&h.params.extendedScanParams, nil)
 	} else {
@@ -280,7 +280,7 @@ func (h *HCI) init() error {
 	return h.err
 }
 
-func (h *HCI) initForBLE5() error {
+func (h *HCI) initForAdvertisingExtensions() error {
 	h.Send(&cmd.Reset{}, nil)
 
 	ReadBDADDRRP := cmd.ReadBDADDRRP{}

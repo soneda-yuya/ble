@@ -60,7 +60,7 @@ func (p *params) init() {
 	}
 }
 
-func (p *params) initForBLE5() {
+func (p *params) initForAdvertisingExtensions() {
 	p.extendedScanParams = cmd.LESetExtendedScanParameters{
 		OwnAddressType:       0x00,   // 0x00: public, 0x01: random
 		ScanningFilterPolicy: 0x00,   // 0x00: accept all, 0x01: ignore non-white-listed
