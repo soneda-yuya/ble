@@ -189,7 +189,10 @@ func (a *ExtendedAdvertisingData) RSSI() int {
 
 // Addr returns the address of the remote peripheral.
 func (a *ExtendedAdvertisingData) Addr() ble.Addr {
-	addr := net.HardwareAddr(a.address)
+	addr := net.HardwareAddr([]byte{a.address[5], a.address[4], a.address[3], a.address[2], a.address[1], a.address[0]})
+	if a.addressType == 1 {
+		return RandomAddress{addr}
+	}
 	return addr
 }
 
