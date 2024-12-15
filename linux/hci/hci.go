@@ -35,6 +35,8 @@ type pkt struct {
 	done chan []byte
 }
 
+var ErrHCIHandlePacket = errors.New("handle packet error")
+
 // NewHCI returns a hci device.
 func NewHCI(opts ...ble.Option) (*HCI, error) {
 	h := &HCI{
@@ -53,7 +55,8 @@ func NewHCI(opts ...ble.Option) (*HCI, error) {
 		chMasterConn: make(chan *Conn),
 		chSlaveConn:  make(chan *Conn),
 
-		done: make(chan bool),
+		cancel: make(chan bool),
+		done:   make(chan bool),
 	}
 	h.params.init()
 	if err := h.Option(opts...); err != nil {
@@ -81,7 +84,8 @@ func NewHCIForAdvertisingExtensions(opts ...ble.Option) (*HCI, error) {
 		chMasterConn: make(chan *Conn),
 		chSlaveConn:  make(chan *Conn),
 
-		done: make(chan bool),
+		cancel: make(chan bool),
+		done:   make(chan bool),
 	}
 	h.params.initForAdvertisingExtensions()
 	if err := h.Option(opts...); err != nil {
@@ -149,8 +153,9 @@ type HCI struct {
 	dialerTmo   time.Duration
 	listenerTmo time.Duration
 
-	err  error
-	done chan bool
+	err    error
+	cancel chan bool
+	done   chan bool
 }
 
 // Init ...
@@ -197,15 +202,6 @@ func (h *HCI) Init() error {
 	// Pre-allocate buffers with additional head room for lower layer headers.
 	// HCI header (1 Byte) + ACL Data Header (4 bytes) + L2CAP PDU (or fragment)
 	h.pool = NewPool(1+4+h.bufSize, h.bufCnt-1)
-
-	if h.params.extendedScanParams.ScanningPHYs != 0x00 {
-		log.Println("Enable Advertising Extensions")
-		h.Send(&h.params.leSetDefaultPHY, nil)
-		h.Send(&h.params.extendedScanParams, nil)
-	} else {
-		h.Send(&h.params.advParams, nil)
-		h.Send(&h.params.scanParams, nil)
-	}
 	return nil
 }
 
@@ -217,6 +213,11 @@ func (h *HCI) Close() error {
 // Done ...
 func (h *HCI) Done() <-chan bool {
 	return h.done
+}
+
+// Done ...
+func (h *HCI) Cancel() <-chan bool {
+	return h.cancel
 }
 
 // Error ...
@@ -234,7 +235,12 @@ func (h *HCI) Option(opts ...ble.Option) error {
 }
 
 func (h *HCI) ResetHCI() error {
-	return h.init()
+	h.err = nil
+	if h.params.extendedScanParams.ScanningPHYs != 0x00 {
+		return h.initForAdvertisingExtensions()
+	} else {
+		return h.init()
+	}
 }
 
 func (h *HCI) init() error {
@@ -277,6 +283,9 @@ func (h *HCI) init() error {
 	WriteLEHostSupportRP := cmd.WriteLEHostSupportRP{}
 	h.Send(&cmd.WriteLEHostSupport{LESupportedHost: 1, SimultaneousLEHost: 0}, &WriteLEHostSupportRP)
 
+	h.Send(&h.params.advParams, nil)
+	h.Send(&h.params.scanParams, nil)
+
 	return h.err
 }
 
@@ -313,6 +322,9 @@ func (h *HCI) initForAdvertisingExtensions() error {
 
 	WriteLEHostSupportRP := cmd.WriteLEHostSupportRP{}
 	h.Send(&cmd.WriteLEHostSupport{LESupportedHost: 1, SimultaneousLEHost: 0}, &WriteLEHostSupportRP)
+
+	h.Send(&h.params.leSetDefaultPHY, nil)
+	h.Send(&h.params.extendedScanParams, nil)
 
 	return h.err
 }
@@ -388,6 +400,8 @@ func (h *HCI) send(c Command) ([]byte, error) {
 	return ret, err
 }
 
+var count = 0
+
 func (h *HCI) sktLoop() {
 	b := make([]byte, 4096)
 	defer close(h.done)
@@ -411,6 +425,24 @@ func (h *HCI) sktLoop() {
 				_ = logger.Error("skt: %v", err)
 			} else {
 				log.Printf("skt: %v", err)
+				// close current hci socket
+				err = h.Close()
+				if err != nil {
+					return
+				}
+
+				// create hci socket again
+				time.Sleep(3 * time.Second)
+				skt, err := socket.NewSocket(h.id)
+				if err != nil {
+					return
+				}
+				h.skt = skt
+
+				// notify canceling to send hci command
+				close(h.cancel)
+				h.cancel = make(chan bool)
+				h.err = ErrHCIHandlePacket
 				continue
 			}
 		}

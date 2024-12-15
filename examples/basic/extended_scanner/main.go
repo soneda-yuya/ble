@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-ble/ble/examples/lib/dev"
+	"github.com/go-ble/ble/linux/hci"
 	"log"
 	"time"
 
@@ -28,8 +29,13 @@ func main() {
 	ble.SetDefaultDevice(d)
 	// ExtendedScan for specified durantion, or until interrupted by user.
 	fmt.Printf("ExtendedScaning for %s...\n", *du)
-	ctx := ble.WithSigHandler(context.WithTimeout(context.Background(), *du))
-	chkErr(ble.ExtendedScan(ctx, *dup, advHandler, nil))
+	for i := 0; i < 3; i++ {
+		ctx := ble.WithSigHandler(context.WithTimeout(context.Background(), *du))
+		err = ble.ExtendedScan(ctx, *dup, advHandler, nil)
+		if errors.Cause(err) == hci.ErrHCIHandlePacket {
+			chkErr(ble.Reset(ctx))
+		}
+	}
 }
 
 func advHandler(a ble.ExtendedAdvertisement) {

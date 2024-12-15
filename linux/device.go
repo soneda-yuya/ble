@@ -246,6 +246,8 @@ func (d *Device) Scan(ctx context.Context, allowDup bool, h ble.AdvHandler) erro
 	case <-ctx.Done():
 	case <-d.HCI.Done():
 		return d.HCI.Error()
+	case <-d.HCI.Cancel():
+		return d.HCI.Error()
 	}
 	d.HCI.StopScanning()
 	return ctx.Err()
@@ -259,7 +261,13 @@ func (d *Device) ExtendedScan(ctx context.Context, allowDup bool, h ble.Extended
 	if err := d.HCI.ExtendedScan(allowDup); err != nil {
 		return err
 	}
-	<-ctx.Done()
+	select {
+	case <-ctx.Done():
+	case <-d.HCI.Done():
+		return d.HCI.Error()
+	case <-d.HCI.Cancel():
+		return d.HCI.Error()
+	}
 	d.HCI.StopExtendedScan()
 	return ctx.Err()
 }

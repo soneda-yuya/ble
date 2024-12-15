@@ -45,6 +45,9 @@ type Device interface {
 	// ExtendedScan starts scanning. Duplicated advertisements will be filtered out if allowDup is set to false.
 	ExtendedScan(ctx context.Context, allowDup bool, h ExtendedAdvHandler) error
 
+	// Reset
+	Reset(ctx context.Context) error
+
 	// Dial ...
 	Dial(ctx context.Context, a Addr) (Client, error)
 }

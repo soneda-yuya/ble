@@ -120,6 +120,16 @@ func ExtendedScan(ctx context.Context, allowDup bool, h ExtendedAdvHandler, f Ad
 	return defaultDevice.ExtendedScan(ctx, allowDup, h2)
 }
 
+// Reset
+func Reset(ctx context.Context) error {
+	if defaultDevice == nil {
+		return ErrDefaultDevice
+	}
+	defer untrap(trap(ctx))
+
+	return defaultDevice.Reset(ctx)
+}
+
 // Find ...
 func Find(ctx context.Context, allowDup bool, f AdvFilter) ([]Advertisement, error) {
 	if defaultDevice == nil {
