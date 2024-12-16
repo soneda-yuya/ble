@@ -440,9 +440,9 @@ func (h *HCI) sktLoop() {
 				h.skt = skt
 
 				// notify canceling to send hci command
+				h.err = ErrHCIHandlePacket
 				close(h.cancel)
 				h.cancel = make(chan bool)
-				h.err = ErrHCIHandlePacket
 				continue
 			}
 		}
