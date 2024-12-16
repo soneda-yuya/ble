@@ -3,7 +3,6 @@ package hci
 import (
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"strings"
 	"sync"
@@ -422,11 +421,12 @@ func (h *HCI) sktLoop() {
 			if strings.HasPrefix(err.Error(), "unsupported vendor packet:") {
 				_ = logger.Error("skt: %v", err)
 			} else {
-				log.Printf("skt: %v", err)
+				_ = logger.Warn("skt: %v", err)
 				// close current hci socket
-				err = h.Close()
+				err = h.skt.Close()
 				if err != nil {
-					return
+					_ = logger.Warn("can't close socket on sktLoop: %v", err)
+					continue
 				}
 
 				// create hci socket again
