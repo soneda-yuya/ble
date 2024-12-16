@@ -148,9 +148,22 @@ func (s *Socket) Write(p []byte) (int, error) {
 }
 
 func (s *Socket) Close() error {
+	// if already closed return nil
+	if s.IsClosed() {
+		return nil
+	}
 	close(s.closed)
 	s.Write([]byte{0x01, 0x09, 0x10, 0x00}) // no-op command to wake up the Read call if it's blocked
 	s.rmu.Lock()
 	defer s.rmu.Unlock()
 	return errors.Wrap(unix.Close(s.fd), "can't close hci socket")
+}
+
+func (s *Socket) IsClosed() bool {
+	select {
+	case <-s.closed:
+		return true
+	default:
+		return false
+	}
 }

@@ -350,6 +350,7 @@ func (h *HCI) send(c Command) ([]byte, error) {
 	if h.err != nil {
 		return nil, h.err
 	}
+	h.skt.Close()
 	p := &pkt{c, make(chan []byte)}
 	b := <-h.chCmdBufs
 	b[0] = byte(pktTypeCommand) // HCI header
@@ -422,6 +423,8 @@ func (h *HCI) sktLoop() {
 				_ = logger.Error("skt: %v", err)
 			} else {
 				_ = logger.Warn("skt: %v", err)
+				h.err = ErrHCIHandlePacket
+
 				// close current hci socket
 				err = h.skt.Close()
 				if err != nil {
@@ -430,10 +433,10 @@ func (h *HCI) sktLoop() {
 				}
 
 				// create hci socket again
-				h.err = ErrHCIHandlePacket
 				time.Sleep(3 * time.Second)
 				skt, err := socket.NewSocket(h.id)
 				if err != nil {
+					_ = logger.Warn("can't create new socket on sktLoop: %v", err)
 					return
 				}
 				h.skt = skt
