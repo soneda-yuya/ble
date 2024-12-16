@@ -400,8 +400,6 @@ func (h *HCI) send(c Command) ([]byte, error) {
 	return ret, err
 }
 
-var count = 0
-
 func (h *HCI) sktLoop() {
 	b := make([]byte, 4096)
 	defer close(h.done)
