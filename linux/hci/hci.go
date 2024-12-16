@@ -234,6 +234,7 @@ func (h *HCI) Option(opts ...ble.Option) error {
 }
 
 func (h *HCI) ResetHCI() error {
+	_ = logger.Warn("ResetHCI")
 	h.err = nil
 	if h.params.extendedScanParams.ScanningPHYs != 0x00 {
 		return h.initForAdvertisingExtensions()
@@ -350,7 +351,7 @@ func (h *HCI) send(c Command) ([]byte, error) {
 	if h.err != nil {
 		return nil, h.err
 	}
-	h.skt.Close()
+
 	p := &pkt{c, make(chan []byte)}
 	b := <-h.chCmdBufs
 	b[0] = byte(pktTypeCommand) // HCI header
@@ -423,7 +424,6 @@ func (h *HCI) sktLoop() {
 				_ = logger.Error("skt: %v", err)
 			} else {
 				_ = logger.Warn("skt: %v", err)
-				h.err = ErrHCIHandlePacket
 
 				// close current hci socket
 				err = h.skt.Close()
@@ -433,8 +433,10 @@ func (h *HCI) sktLoop() {
 				}
 
 				// create hci socket again
-				time.Sleep(3 * time.Second)
+				time.Sleep(1 * time.Second)
 				skt, err := socket.NewSocket(h.id)
+				_ = logger.Warn("creating new socket on sktLoop: %v", err)
+
 				if err != nil {
 					_ = logger.Warn("can't create new socket on sktLoop: %v", err)
 					return
@@ -444,6 +446,9 @@ func (h *HCI) sktLoop() {
 				// notify canceling to send hci command
 				close(h.cancel)
 				h.cancel = make(chan bool)
+				_ = logger.Warn("notify canceling to send hci command")
+				h.err = ErrHCIHandlePacket
+
 				continue
 			}
 		}
