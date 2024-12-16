@@ -430,6 +430,7 @@ func (h *HCI) sktLoop() {
 				}
 
 				// create hci socket again
+				h.err = ErrHCIHandlePacket
 				time.Sleep(3 * time.Second)
 				skt, err := socket.NewSocket(h.id)
 				if err != nil {
@@ -438,7 +439,6 @@ func (h *HCI) sktLoop() {
 				h.skt = skt
 
 				// notify canceling to send hci command
-				h.err = ErrHCIHandlePacket
 				close(h.cancel)
 				h.cancel = make(chan bool)
 				continue
