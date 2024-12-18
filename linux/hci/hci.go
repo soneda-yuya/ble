@@ -401,19 +401,28 @@ func (h *HCI) send(c Command) ([]byte, error) {
 	return ret, err
 }
 
+var count = 0
+
 func (h *HCI) sktLoop() {
 	b := make([]byte, 4096)
 	defer close(h.done)
 	for {
 		n, err := h.skt.Read(b)
 		if n == 0 || err != nil {
+			h.ReCreateSkt()
+			if h.IsErrHCIHandlePacket() {
+				continue
+			}
+
 			if err == io.EOF {
 				h.err = err //callers depend on detecting io.EOF, don't wrap it.
 			} else {
 				h.err = fmt.Errorf("skt: %s", err)
 			}
+
 			return
 		}
+
 		p := make([]byte, n)
 		copy(p, b)
 
@@ -424,35 +433,47 @@ func (h *HCI) sktLoop() {
 				_ = logger.Error("skt: %v", err)
 			} else {
 				_ = logger.Warn("skt: %v", err)
-
-				// close current hci socket
-				err = h.skt.Close()
-				if err != nil {
-					_ = logger.Warn("can't close socket on sktLoop: %v", err)
+				h.ReCreateSkt()
+				if h.IsErrHCIHandlePacket() {
 					continue
 				}
-
-				// create hci socket again
-				time.Sleep(1 * time.Second)
-				skt, err := socket.NewSocket(h.id)
-				_ = logger.Warn("creating new socket on sktLoop: %v", err)
-
-				if err != nil {
-					_ = logger.Warn("can't create new socket on sktLoop: %v", err)
-					return
-				}
-				h.skt = skt
-
-				// notify canceling to send hci command
-				close(h.cancel)
-				h.cancel = make(chan bool)
-				_ = logger.Warn("notify canceling to send hci command")
-				h.err = ErrHCIHandlePacket
-
-				continue
+				return
 			}
 		}
 	}
+}
+
+func (h *HCI) IsErrHCIHandlePacket() bool {
+	return errors.Cause(h.err) == ErrHCIHandlePacket
+}
+
+func (h *HCI) ReCreateSkt() {
+	// close current hci socket
+	_ = logger.Warn("close socket on sktLoop")
+	err := h.skt.Close()
+	if err != nil {
+		_ = logger.Warn("can't close socket on sktLoop: %v", err)
+		h.err = ErrHCIHandlePacket
+		return
+	}
+
+	// create hci socket again
+	time.Sleep(1 * time.Second)
+	skt, err := socket.NewSocket(h.id)
+	_ = logger.Warn("creating new socket on sktLoop: %v", err)
+
+	if err != nil {
+		_ = logger.Warn("can't create new socket on sktLoop: %v", err)
+		h.err = err
+		return
+	}
+	h.skt = skt
+
+	// notify canceling to send hci command
+	close(h.cancel)
+	h.cancel = make(chan bool)
+	_ = logger.Warn("notify canceling to send hci command")
+	h.err = ErrHCIHandlePacket
 }
 
 func (h *HCI) close(err error) error {
